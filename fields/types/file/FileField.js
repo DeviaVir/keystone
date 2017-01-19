@@ -12,6 +12,7 @@ import {
 	FormInput,
 	FormNote,
 } from '../../../admin/client/App/elemental';
+import ImageThumbnail from '../../components/ImageThumbnail';
 import FileChangeMessage from '../../components/FileChangeMessage';
 import HiddenFileInput from '../../components/HiddenFileInput';
 
@@ -33,12 +34,10 @@ module.exports = Field.create({
 		path: PropTypes.string.isRequired,
 		value: PropTypes.shape({
 			filename: PropTypes.string,
-			// TODO: these are present but not used in the UI,
-			//       should we start using them?
-			// filetype: PropTypes.string,
-			// originalname: PropTypes.string,
-			// path: PropTypes.string,
-			// size: PropTypes.number,
+			filetype: PropTypes.string,
+			originalname: PropTypes.string,
+			path: PropTypes.string,
+			size: PropTypes.number,
 		}),
 	},
 	statics: {
@@ -62,6 +61,9 @@ module.exports = Field.create({
 	// HELPERS
 	// ==============================
 
+	hasLocal () {
+		return !!this.state.userSelectedFile;
+	},
 	hasFile () {
 		return this.hasExisting() || !!this.state.userSelectedFile;
 	},
@@ -72,6 +74,16 @@ module.exports = Field.create({
 		return this.state.userSelectedFile
 			? this.state.userSelectedFile.name
 			: this.props.value.filename;
+	},
+	getFileSource () {
+		let src;
+		if (this.hasLocal()) {
+			src = this.state.dataUri;
+		} else if (this.hasExisting()) {
+			src = '/uploads/' + this.props.value.filename;
+		}
+
+		return src;
 	},
 
 	// ==============================
@@ -120,6 +132,47 @@ module.exports = Field.create({
 	// ==============================
 	// RENDERERS
 	// ==============================
+
+	renderLightbox () {
+		const { value } = this.props;
+
+		if (!value || !value.public_id) return;
+
+		return (
+			<Lightbox
+				currentImage={0}
+				images={[{ src: this.getFileSource() }]}
+				isOpen={this.state.lightboxIsVisible}
+				onClose={this.closeLightbox}
+				showImageCount={false}
+			/>
+		);
+	},
+
+	renderFilePreview () {
+		const { value } = this.props;
+
+		// render icon feedback for intent
+		let mask;
+		if (this.hasLocal()) mask = 'upload';
+		else if (this.state.removeExisting) mask = 'remove';
+		else if (this.state.loading) mask = 'loading';
+
+		const shouldOpenLightbox = value.format !== 'pdf';
+
+		return (
+			<ImageThumbnail
+				component="a"
+				href={this.getFileSource()}
+				onClick={shouldOpenLightbox && this.openLightbox}
+				mask={mask}
+				target="__blank"
+				style={{ float: 'left', marginRight: '1em', width: '100px', height: '100px', overflow: 'hidden' }}
+			>
+				<img src={this.getFileSource()} style={{ height: 90, width: 90 }} />
+			</ImageThumbnail>
+		);
+	},
 
 	renderFileNameAndChangeMessage () {
 		const href = this.props.value ? this.props.value.url : undefined;
@@ -201,12 +254,19 @@ module.exports = Field.create({
 			</div>
 		);
 
+		const fileContainer = (
+			<div style={this.hasFile() ? { marginBottom: '1em' } : null}>
+				{this.hasFile() && this.renderFilePreview()}
+				{this.hasFile() && this.renderFileNameAndChangeMessage(this.shouldRenderField())}
+			</div>
+		);
+
 		return (
 			<div data-field-name={path} data-field-type="file">
 				<FormField label={label} htmlFor={path}>
 					{this.shouldRenderField() ? (
 						<div>
-							{this.hasFile() && this.renderFileNameAndChangeMessage()}
+							{fileContainer}
 							{buttons}
 							<HiddenFileInput
 								key={this.state.uploadFieldPath}
@@ -219,7 +279,7 @@ module.exports = Field.create({
 					) : (
 						<div>
 							{this.hasFile()
-								? this.renderFileNameAndChangeMessage()
+								? fileContainer
 								: <FormInput noedit>no file</FormInput>}
 						</div>
 					)}
