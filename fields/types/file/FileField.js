@@ -52,6 +52,18 @@ module.exports = Field.create({
 	},
 	componentWillUpdate (nextProps) {
 		// Show the new filename when it's finished uploading
+		if (typeof this.props.value === 'undefined') {
+			this.props.value = {
+				'filename': 'props'
+			}
+		}
+
+		if (typeof nextProps.value === 'undefined') {
+			nextProps.value = {
+				'filename': 'default.jpg'
+			}
+		}
+
 		if (this.props.value.filename !== nextProps.value.filename) {
 			this.setState(buildInitialState(nextProps));
 		}
@@ -158,6 +170,8 @@ module.exports = Field.create({
 		else if (this.state.removeExisting) mask = 'remove';
 		else if (this.state.loading) mask = 'loading';
 
+		console.log('value', value)
+
 		const shouldOpenLightbox = value.format !== 'pdf';
 
 		return (
@@ -169,7 +183,11 @@ module.exports = Field.create({
 				target="__blank"
 				style={{ float: 'left', marginRight: '1em', width: '100px', height: '100px', overflow: 'hidden' }}
 			>
-				<img src={this.getFileSource()} style={{ height: 90, width: 90 }} />
+				{value.mimetype && value.mimetype.split('/')[0] === 'image' ? (
+					<img src={this.getFileSource()} style={{ height: 90, width: 90 }} />
+				) : (value.mimetype && value.mimetype.split('/')[0] === 'video' ? (
+					<video src={this.getFileSource()} style={{ height: 90, width: 90 }} />
+				) : null)}
 			</ImageThumbnail>
 		);
 	},
